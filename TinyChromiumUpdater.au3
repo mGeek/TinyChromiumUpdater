@@ -1,4 +1,4 @@
-#Region ;**** Directives created by AutoIt3Wrapper_GUI ****
+#region ;**** Directives created by AutoIt3Wrapper_GUI ****
 #AutoIt3Wrapper_Icon=logo.ico
 #AutoIt3Wrapper_UseUpx=n
 #AutoIt3Wrapper_UseX64=n
@@ -8,7 +8,7 @@
 #AutoIt3Wrapper_Res_requestedExecutionLevel=asInvoker
 #AutoIt3Wrapper_Res_File_Add=res\bg-body.jpg, rt_rcdata, bg_body
 #AutoIt3Wrapper_Res_File_Add=res\bg-mini.jpg, rt_rcdata, bg_mini
-#EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
+#endregion ;**** Directives created by AutoIt3Wrapper_GUI ****
 #include <GUIConstantsEx.au3>
 #include <WindowsConstants.au3>
 #include <StaticConstants.au3>
@@ -18,13 +18,40 @@
 
 Opt("TrayMenuMode", 1)
 Opt("TrayAutoPause", 0)
-
-Global Const $NIN_BALLOONTIMEOUT = $WM_USER + 4
-Global Const $NIN_BALLOONUSERCLICK = $WM_USER + 5
+Opt('WinTitleMatchMode', 3)
+Opt('WinWaitDelay', 0)
 
 $lastChangeURL = "http://commondatastorage.googleapis.com/chromium-browser-continuous/Win/LAST_CHANGE"
 $downloadURL = "http://commondatastorage.googleapis.com/chromium-browser-continuous/Win/%id/mini_installer.exe"
 Global $trayTest = 0, $handleProc, $handleProcOld, $handle, $trayClicked
+
+Global Const $NIN_BALLOONSHOW = $WM_USER + 2
+Global Const $NIN_BALLOONHIDE = $WM_USER + 3
+Global Const $NIN_BALLOONUSERCLICK = $WM_USER + 5
+Global Const $NIN_BALLOONTIMEOUT = $WM_USER + 4
+
+$hForm = GUICreate('')
+
+If @AutoItX64 Then
+	FileInstall("res\AITray_x64.dll", @TempDir & "\*", 1)
+	$hDll = DllOpen(@TempDir & '\AITray_x64.dll')
+Else
+	FileInstall("res\AITray.dll", @TempDir & "\*", 1)
+	$hDll = DllOpen(@TempDir & '\AITray.dll')
+EndIf
+
+If $hDll <> -1 Then
+	$Ret = DllCall($hDll, 'int', 'AISetTrayRedirection', 'hwnd', WinGetHandle(AutoItWinGetTitle()), 'hwnd', $hForm)
+	If (@error) Or (Not $Ret[0]) Then
+		DllClose($hDll)
+		Exit
+	EndIf
+Else
+	MsgBox(16, "Erreur", "Erreur fatale liée à la DLL AITray.dll")
+	Exit
+EndIf
+
+GUIRegisterMsg($WM_USER + 1, 'WM_TRAYNOTIFY')
 
 If Not FileExists("cfg") Then IniWrite("cfg", "Chromium", "version", "0")
 
@@ -32,7 +59,6 @@ If Not FileExists("cfg") Then IniWrite("cfg", "Chromium", "version", "0")
 $guiMain = GUICreate("TinyChromiumUpdater", 300, 250)
 $pic_ = GUICtrlCreatePic("", 0, 0, 300, 250)
 _ResourceSetImageToCtrl($pic_, "bg_body")
-
 GUICtrlSetState(-1, 128)
 
 GUICtrlCreateLabel("version 0.1", 150, 235, 145, 20, $SS_RIGHT)
@@ -102,22 +128,17 @@ While 1
 			TrayItemSetState($tShow, $GUI_UNCHECKED)
 		Case $tExit
 			If MsgBox(36, "Quitter TinyChromiumUpdater", "Êtes vous sur de vouloir me désactiver ?" & @CRLF & "Vous ne receverez plus les mises à jours de Chromium tant que vous ne me relancerez pas..") = 6 Then
+				DllCall($hDll, 'int', 'AIRemoveTrayRedirection')
+				DllClose($hDll)
 				Exit
 			EndIf
 			TrayItemSetState($tExit, $GUI_UNCHECKED)
 	EndSwitch
 
-	If TimerDiff($timerCheckVersion) > 300000 Then ;5 minutes
-	;If TimerDiff($timerCheckVersion) > 10000 Then ;10 secondes
+	;If TimerDiff($timerCheckVersion) > 300000 Then ;5 minutes
+	If TimerDiff($timerCheckVersion) > 10000 Then ;10 secondes
 		_CheckVersion()
 		$timerCheckVersion = TimerInit()
-	EndIf
-
-	If $trayTest Then
-		If Not $handleProc And $trayClicked Then
-			$trayTest = 0
-			_ForceUpdate()
-		EndIf
 	EndIf
 
 	Sleep(10)
@@ -128,12 +149,6 @@ Func _CheckVersion()
 	If $lastChange > IniRead("cfg", "Chromium", "version", $lastChange) Then
 		;Une mise à jour est requise
 		TrayTip("Tiny Chromium Updater", "Une mise à jour de Chromium est disponible !" & @CRLF & "Cliquez sur ce message pour l'installer.", 1)
-		$trayTest = 1
-		Dim $trayClicked = False, _
-				$handle = _AutoItWinGetHandle(), _
-				$handleProc = DllCallbackRegister("_AutoItWndProc", "int", "hwnd;uint;wparam;lparam"), _
-				$handleProcOld = _WinAPI_SetWindowLong($handle, $GWL_WNDPROC, DllCallbackGetPtr($handleProc))
-
 		_UpdateGUI()
 	EndIf
 	Return $lastChange
@@ -172,7 +187,7 @@ Func _ForceUpdate()
 	GUISetState(@SW_HIDE, $guiMain)
 
 	$guiProgression = GUICreate("", 300, 30, @DesktopWidth - 320, @DesktopHeight - 80, BitOR($WS_POPUP, $WS_BORDER), $WS_EX_TOPMOST)
-	$pic_ =GUICtrlCreatePic("", 0, 0, 300, 30)
+	$pic_ = GUICtrlCreatePic("", 0, 0, 300, 30)
 	_ResourceSetImageToCtrl($pic_, "bg_mini")
 	GUICtrlSetState(-1, 128)
 	$progressBar = GUICtrlCreateProgress(40, 5, 205, 19)
@@ -210,29 +225,18 @@ Func _ForceUpdate()
 
 EndFunc   ;==>_ForceUpdate
 
-Func _AutoItWndProc($hWnd, $iMsg, $iwParam, $ilParam)
-	#forceref $hWnd, $iMsg, $iwParam, $ilParam
-	Switch $iMsg
-		Case $WM_USER + 1
-			Switch $ilParam
+Func WM_TRAYNOTIFY($hWnd, $iMsg, $wParam, $lParam)
+	Switch $hWnd
+		Case $hForm
+			Switch $lParam
+				Case $NIN_BALLOONSHOW
+					ConsoleWrite('Balloon tip show.' & @CR)
+				Case $NIN_BALLOONHIDE
+					ConsoleWrite('Balloon tip hide.' & @CR)
 				Case $NIN_BALLOONUSERCLICK
-					$trayClicked = True
-					ContinueCase
+					_ForceUpdate()
 				Case $NIN_BALLOONTIMEOUT
-					_WinAPI_SetWindowLong($handle, $GWL_WNDPROC, $handleProcOld)
-					DllCallbackFree($handleProc)
-					$handleProc = 0
+					ConsoleWrite('Balloon tip close.' & @CR)
 			EndSwitch
 	EndSwitch
-	Return _WinAPI_CallWindowProc($handleProcOld, $hWnd, $iMsg, $iwParam, $ilParam)
-EndFunc   ;==>_AutoItWndProc
-
-Func _AutoItWinGetHandle() ; Author: Prog@ndy
-	Local $oldTitle = AutoItWinGetTitle()
-	Local $x = Random(1248578, 1249780)
-	AutoItWinSetTitle("qwrzu" & $x)
-	Local $y = WinGetHandle("qwrzu" & $x)
-	AutoItWinSetTitle($oldTitle)
-	Return $y
-EndFunc   ;==>_AutoItWinGetHandle
-
+EndFunc   ;==>WM_TRAYNOTIFY
