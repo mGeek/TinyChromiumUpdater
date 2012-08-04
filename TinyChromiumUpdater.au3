@@ -3,7 +3,7 @@
 #AutoIt3Wrapper_UseUpx=n
 #AutoIt3Wrapper_UseX64=n
 #AutoIt3Wrapper_Res_Description=TinyChromiumUpdater par mGeek
-#AutoIt3Wrapper_Res_Fileversion=0.1.0.0
+#AutoIt3Wrapper_Res_Fileversion=0.2.0.0
 #AutoIt3Wrapper_Res_Language=1036
 #AutoIt3Wrapper_Res_requestedExecutionLevel=asInvoker
 #AutoIt3Wrapper_Res_File_Add=res\bg-body.jpg, rt_rcdata, bg_body
@@ -13,8 +13,10 @@
 #include <WindowsConstants.au3>
 #include <StaticConstants.au3>
 #include <Constants.au3>
-#include <WinAPI.au3>
+#include <Misc.au3>
 #include "res\Resources.au3"
+
+_Singleton("TinyChromiumUpdater")
 
 Opt("TrayMenuMode", 1)
 Opt("TrayAutoPause", 0)
@@ -61,11 +63,11 @@ $pic_ = GUICtrlCreatePic("", 0, 0, 300, 250)
 _ResourceSetImageToCtrl($pic_, "bg_body")
 GUICtrlSetState(-1, 128)
 
-GUICtrlCreateLabel("version 0.1", 150, 235, 145, 20, $SS_RIGHT)
+GUICtrlCreateLabel("version 0.2", 150, 235, 145, 20, $SS_RIGHT)
 GUICtrlSetBkColor(-1, -2)
 GUICtrlSetColor(-1, 0xFFFFFF)
 
-GUICtrlCreateLabel("Créé par mGeek", 5, 235, 85, 20)
+$labelCredit = GUICtrlCreateLabel("Créé par mGeek", 5, 235, 85, 20)
 GUICtrlSetBkColor(-1, -2)
 GUICtrlSetColor(-1, 0xFFFFFF)
 GUICtrlSetCursor(-1, 0)
@@ -99,13 +101,14 @@ EndIf
 $tShow = TrayCreateItem("Afficher / Cacher")
 $tExit = TrayCreateItem("Quitter")
 TraySetState()
-TraySetToolTip("TinyChromiumUpdater 0.1")
+TraySetToolTip("TinyChromiumUpdater 0.2")
 
 _CheckVersion()
 $timerCheckVersion = TimerInit()
 While 1
 	Switch GUIGetMsg()
 		Case -3
+			MsgBox(64, "Bon de réduction", "Je vais me réduire dans la barre des taches, comme ça, je reste actif pour vous signaler l'arrivée d'une nouvelle version")
 			GUISetState(@SW_HIDE, $guiMain)
 		Case $buttonStartState
 			If IsAdmin() Then
@@ -116,6 +119,8 @@ While 1
 			EndIf
 		Case $buttonUpdate
 			_ForceUpdate()
+		Case $labelCredit
+			ShellExecute("http://mgeek.legtux.org")
 	EndSwitch
 
 	Switch TrayGetMsg()
@@ -128,15 +133,14 @@ While 1
 			TrayItemSetState($tShow, $GUI_UNCHECKED)
 		Case $tExit
 			If MsgBox(36, "Quitter TinyChromiumUpdater", "Êtes vous sur de vouloir me désactiver ?" & @CRLF & "Vous ne receverez plus les mises à jours de Chromium tant que vous ne me relancerez pas..") = 6 Then
-				DllCall($hDll, 'int', 'AIRemoveTrayRedirection')
 				DllClose($hDll)
 				Exit
 			EndIf
 			TrayItemSetState($tExit, $GUI_UNCHECKED)
 	EndSwitch
 
-	;If TimerDiff($timerCheckVersion) > 300000 Then ;5 minutes
-	If TimerDiff($timerCheckVersion) > 10000 Then ;10 secondes
+	If TimerDiff($timerCheckVersion) > 300000 Then ;5 minutes
+	;If TimerDiff($timerCheckVersion) > 10000 Then ;10 secondes
 		_CheckVersion()
 		$timerCheckVersion = TimerInit()
 	EndIf
