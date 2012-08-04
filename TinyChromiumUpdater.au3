@@ -75,6 +75,7 @@ $tExit = TrayCreateItem("Quitter")
 TraySetState()
 TraySetToolTip("TinyChromiumUpdater 0.1")
 
+_CheckVersion()
 $timerCheckVersion = TimerInit()
 While 1
 	Switch GUIGetMsg()
