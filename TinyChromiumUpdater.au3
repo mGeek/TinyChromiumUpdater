@@ -1,14 +1,40 @@
-#region ;**** Directives created by AutoIt3Wrapper_GUI ****
+#Region ;**** Directives created by AutoIt3Wrapper_GUI ****
 #AutoIt3Wrapper_Icon=logo.ico
+#AutoIt3Wrapper_Outfile=TinyChromiumUpdater.exe
 #AutoIt3Wrapper_UseUpx=n
 #AutoIt3Wrapper_UseX64=n
 #AutoIt3Wrapper_Res_Description=TinyChromiumUpdater par mGeek
-#AutoIt3Wrapper_Res_Fileversion=0.2.0.0
+#AutoIt3Wrapper_Res_Fileversion=0.3.0.0
 #AutoIt3Wrapper_Res_Language=1036
 #AutoIt3Wrapper_Res_requestedExecutionLevel=asInvoker
 #AutoIt3Wrapper_Res_File_Add=res\bg-body.jpg, rt_rcdata, bg_body
 #AutoIt3Wrapper_Res_File_Add=res\bg-mini.jpg, rt_rcdata, bg_mini
-#endregion ;**** Directives created by AutoIt3Wrapper_GUI ****
+#EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
+
+#cs -----------------------------------------------------------------
+
+	TinyChromiumUpdater 0.3
+	par mGeek - web: mgeek.legtux.org
+	(version Debian/Ubuntu codée par Drav disponible sur dravinux.legtux.org)
+
+	changelog-
+	0.3 - VERSION STABLE
+	Ajout de commentaires
+	Optimisation de AITray.dll (x32 et x64)
+	0.2
+	Correction de l'intégration des backgrounds
+	Problème de fermeture réglé / Ajout d'un singleTon pour prévenir les multi-ouvertures
+	Fonctionnel sur x64
+	Rangement du code
+	0.1 (.1)
+	Correction d'un problème lié au Tooltip (x32)
+	Recherche de mise à jour des le lancement
+	0.1
+	Init
+
+#ce -----------------------------------------------------------------
+
+#region Initialisation de TinyChromiumUpdater
 #include <GUIConstantsEx.au3>
 #include <WindowsConstants.au3>
 #include <StaticConstants.au3>
@@ -16,22 +42,23 @@
 #include <Misc.au3>
 #include "res\Resources.au3"
 
-_Singleton("TinyChromiumUpdater")
+_Singleton("TinyChromiumUpdater") ;Permet d'empécher de lancer plusieurs fois le logiciel
 
 Opt("TrayMenuMode", 1)
 Opt("TrayAutoPause", 0)
-Opt('WinTitleMatchMode', 3)
-Opt('WinWaitDelay', 0)
+Opt('WinTitleMatchMode', 3) ;Pour AITray.dll
+Opt('WinWaitDelay', 0) ;Pour AITray.dll
 
 $lastChangeURL = "http://commondatastorage.googleapis.com/chromium-browser-continuous/Win/LAST_CHANGE"
 $downloadURL = "http://commondatastorage.googleapis.com/chromium-browser-continuous/Win/%id/mini_installer.exe"
-Global $trayTest = 0, $handleProc, $handleProcOld, $handle, $trayClicked
+$version = "0.3"
 
-Global Const $NIN_BALLOONSHOW = $WM_USER + 2
-Global Const $NIN_BALLOONHIDE = $WM_USER + 3
+DirCreate(@AppDataDir & "\TinyChromiumUpdater")
+If Not FileExists(@AppDataDir & "\TinyChromiumUpdater\config") Then IniWrite(@AppDataDir & "\TinyChromiumUpdater\config", "Chromium", "version", "0")
+#endregion Initialisation de TinyChromiumUpdater
+
+#region == Initialisation d'AITray.dll
 Global Const $NIN_BALLOONUSERCLICK = $WM_USER + 5
-Global Const $NIN_BALLOONTIMEOUT = $WM_USER + 4
-
 $hForm = GUICreate('')
 
 If @AutoItX64 Then
@@ -54,16 +81,15 @@ Else
 EndIf
 
 GUIRegisterMsg($WM_USER + 1, 'WM_TRAYNOTIFY')
+#endregion == Initialisation d'AITray.dll
 
-If Not FileExists("cfg") Then IniWrite("cfg", "Chromium", "version", "0")
-
-;Fenêtre
+#region == Création de la fenêtre
 $guiMain = GUICreate("TinyChromiumUpdater", 300, 250)
 $pic_ = GUICtrlCreatePic("", 0, 0, 300, 250)
 _ResourceSetImageToCtrl($pic_, "bg_body")
 GUICtrlSetState(-1, 128)
 
-GUICtrlCreateLabel("version 0.2", 150, 235, 145, 20, $SS_RIGHT)
+GUICtrlCreateLabel("version " & $version, 150, 235, 145, 20, $SS_RIGHT)
 GUICtrlSetBkColor(-1, -2)
 GUICtrlSetColor(-1, 0xFFFFFF)
 
@@ -90,21 +116,31 @@ $labelVersionState = GUICtrlCreateLabel("", 10, 150, 280, 20, $SS_CENTER)
 GUICtrlSetBkColor(-1, -2)
 
 $buttonUpdate = GUICtrlCreateButton("", 30, 175, 240, 23)
+#endregion == Création de la fenêtre
 
+
+;Mise à jour du status (registre - version de chromium)
 _UpdateGUI()
 
+;Si le programme à été lancé en mode "silentieux" (param. -s) la fenêtre ne s'affiche pas
 If $CmdLine[0] <> 0 And $CmdLine[1] = "-s" Then
 Else
 	GUISetState(@SW_SHOW)
 EndIf
 
+#region == Création du menu Tray
 $tShow = TrayCreateItem("Afficher / Cacher")
 $tExit = TrayCreateItem("Quitter")
 TraySetState()
-TraySetToolTip("TinyChromiumUpdater 0.2")
+TraySetToolTip("TinyChromiumUpdater " & $version)
+#endregion == Création du menu Tray
 
+
+;Première recherche de version
 _CheckVersion()
 $timerCheckVersion = TimerInit()
+
+#region == Boucle principale (fenêtre - tray - gestion du temps de recherche de mises à jour)
 While 1
 	Switch GUIGetMsg()
 		Case -3
@@ -140,17 +176,20 @@ While 1
 	EndSwitch
 
 	If TimerDiff($timerCheckVersion) > 300000 Then ;5 minutes
-	;If TimerDiff($timerCheckVersion) > 10000 Then ;10 secondes
+		;If TimerDiff($timerCheckVersion) > 10000 Then ;10 secondes (pour le debug)
 		_CheckVersion()
 		$timerCheckVersion = TimerInit()
 	EndIf
 
 	Sleep(10)
 WEnd
+#endregion == Boucle principale (fenêtre - tray - gestion du temps de recherche de mises à jour)
 
+
+#region == Fonctions liées à TinyChromiumUpdater
 Func _CheckVersion()
 	$lastChange = BinaryToString(InetRead($lastChangeURL, 1))
-	If $lastChange > IniRead("cfg", "Chromium", "version", $lastChange) Then
+	If $lastChange > IniRead(@AppDataDir & "\TinyChromiumUpdater\config", "Chromium", "version", $lastChange) Then
 		;Une mise à jour est requise
 		TrayTip("Tiny Chromium Updater", "Une mise à jour de Chromium est disponible !" & @CRLF & "Cliquez sur ce message pour l'installer.", 1)
 		_UpdateGUI()
@@ -170,8 +209,8 @@ Func _UpdateGUI()
 	EndIf
 
 	$lastChange = BinaryToString(InetRead($lastChangeURL, 1))
-	GUICtrlSetData($labelVersion, "Version installée: " & IniRead("cfg", "Chromium", "version", $lastChange) & " | Version disponible: " & $lastChange)
-	If $lastChange > IniRead("cfg", "Chromium", "version", $lastChange) Then
+	GUICtrlSetData($labelVersion, "Version installée: " & IniRead(@AppDataDir & "\TinyChromiumUpdater\config", "Chromium", "version", $lastChange) & " | Version disponible: " & $lastChange)
+	If $lastChange > IniRead(@AppDataDir & "\TinyChromiumUpdater\config", "Chromium", "version", $lastChange) Then
 		GUICtrlSetData($labelVersionState, "Une mise à jour est disponible !")
 		GUICtrlSetColor($labelVersionState, 0x00BF00)
 		GUICtrlSetFont($labelVersionState, -1, 800)
@@ -203,7 +242,7 @@ Func _ForceUpdate()
 	$downloadURL_ = StringReplace($downloadURL, "%id", $lastChange)
 
 	$iget_size = InetGetSize($downloadURL_)
-	$iget = InetGet($downloadURL_, "mini_installer.exe", 1, 1)
+	$iget = InetGet($downloadURL_, @AppDataDir & "\TinyChromiumUpdater\mini_installer.exe", 1, 1)
 
 	Do
 		$percent = Round(InetGetInfo($iget, 0) * 100 / $iget_size)
@@ -218,9 +257,9 @@ Func _ForceUpdate()
 	While ProcessExists("chrome.exe")
 		ProcessClose("chrome.exe")
 	WEnd
-	RunWait("mini_installer.exe")
+	RunWait(@AppDataDir & "\TinyChromiumUpdater\mini_installer.exe")
 
-	IniWrite("cfg", "Chromium", "version", $lastChange)
+	IniWrite(@AppDataDir & "\TinyChromiumUpdater\config", "Chromium", "version", $lastChange)
 	GUIDelete($guiProgression)
 	MsgBox(64, "Mise à jour terminée", "Chromium à été mis à jour avec succès")
 
@@ -228,19 +267,13 @@ Func _ForceUpdate()
 	_UpdateGUI()
 
 EndFunc   ;==>_ForceUpdate
+#endregion == Fonctions liées à TinyChromiumUpdater
 
+#region Fonction liée à AITray.dll
 Func WM_TRAYNOTIFY($hWnd, $iMsg, $wParam, $lParam)
 	Switch $hWnd
 		Case $hForm
-			Switch $lParam
-				Case $NIN_BALLOONSHOW
-					ConsoleWrite('Balloon tip show.' & @CR)
-				Case $NIN_BALLOONHIDE
-					ConsoleWrite('Balloon tip hide.' & @CR)
-				Case $NIN_BALLOONUSERCLICK
-					_ForceUpdate()
-				Case $NIN_BALLOONTIMEOUT
-					ConsoleWrite('Balloon tip close.' & @CR)
-			EndSwitch
+			If $lParam = $NIN_BALLOONUSERCLICK Then _ForceUpdate()
 	EndSwitch
 EndFunc   ;==>WM_TRAYNOTIFY
+#endregion Fonction liée à AITray.dll
