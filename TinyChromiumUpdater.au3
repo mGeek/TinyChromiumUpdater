@@ -4,7 +4,7 @@
 #AutoIt3Wrapper_UseUpx=n
 #AutoIt3Wrapper_UseX64=n
 #AutoIt3Wrapper_Res_Description=TinyChromiumUpdater par mGeek
-#AutoIt3Wrapper_Res_Fileversion=0.3.0.0
+#AutoIt3Wrapper_Res_Fileversion=0.31.0.0
 #AutoIt3Wrapper_Res_Language=1036
 #AutoIt3Wrapper_Res_requestedExecutionLevel=asInvoker
 #AutoIt3Wrapper_Res_File_Add=res\bg-body.jpg, rt_rcdata, bg_body
@@ -13,11 +13,13 @@
 
 #cs -----------------------------------------------------------------
 
-	TinyChromiumUpdater 0.3
-	par mGeek - web: mgeek.legtux.org
-	(version Debian/Ubuntu codée par Drav disponible sur dravinux.legtux.org)
+	TinyChromiumUpdater 0.31
+	par @mGeek_ - web: mgeek.fr |
+	(version Debian/Ubuntu codée par @_Drav disponible sur dravinux.legtux.org)
 
 	changelog-
+	0.31
+	Correction d'une faute d'orthographe (merci @ThePoivron)
 	0.3 - VERSION STABLE
 	Ajout de commentaires
 	Optimisation de AITray.dll (x32 et x64)
@@ -26,11 +28,10 @@
 	Problème de fermeture réglé / Ajout d'un singleTon pour prévenir les multi-ouvertures
 	Fonctionnel sur x64
 	Rangement du code
-	0.1 (.1)
+	0.11
 	Correction d'un problème lié au Tooltip (x32)
 	Recherche de mise à jour des le lancement
 	0.1
-	Init
 
 #ce -----------------------------------------------------------------
 
@@ -101,7 +102,7 @@ GUICtrlSetCursor(-1, 0)
 $labelStartState = GUICtrlCreateLabel("", 10, 50, 280, 30, $SS_CENTER)
 GUICtrlSetBkColor(-1, -2)
 
-$buttonStartState = GUICtrlCreateButton("Lancer au démmarage de Windows", 30, 85, 240, 23)
+$buttonStartState = GUICtrlCreateButton("Lancer au démarage de Windows", 30, 85, 240, 23)
 GUICtrlSetBkColor(-1, -2)
 GUICtrlSetState(-1, 128)
 
@@ -199,11 +200,11 @@ EndFunc   ;==>_CheckVersion
 
 Func _UpdateGUI()
 	If Not RegRead("HKLM\Software\Microsoft\Windows\CurrentVersion\Run\", "TinyChromiumUpdater") = @ScriptFullPath & " -s" Then
-		GUICtrlSetData($labelStartState, "Je ne suis pas assigné au démmarage de Windows, cliquez sur le bouton ci-dessous pour m'associer :")
+		GUICtrlSetData($labelStartState, "Je ne suis pas assigné au démarage de Windows, cliquez sur le bouton ci-dessous pour m'associer :")
 		GUICtrlSetColor($labelStartState, 0xBF0000)
 		GUICtrlSetState($buttonStartState, $GUI_ENABLE)
 	Else
-		GUICtrlSetData($labelStartState, "Je suis correctement prévu pour me lancer au démmarage de Windows")
+		GUICtrlSetData($labelStartState, "Je suis correctement prévu pour me lancer au démarage de Windows")
 		GUICtrlSetColor($labelStartState, 0x00BF00)
 		GUICtrlSetState($buttonStartState, $GUI_DISABLE)
 	EndIf
